@@ -1,0 +1,435 @@
+version: '3.8'
+
+services:
+  # API Gateway - Entry point for all requests
+  api-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: multi-agent-api-gateway
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - ENV=production
+      - LOG_LEVEL=INFO
+      - SERVICE_NAME=api-gateway
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - multi-agent-network
+    volumes:
+      - model_cache:/app/models
+      - data:/app/data
+      - logs:/app/logs
+
+  # Orchestrator - Main coordination service
+  orchestrator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: multi-agent-orchestrator
+    ports:
+      - "8081:8081"
+    environment:
+      - PORT=8081
+      - ENV=production
+      - LOG_LEVEL=INFO
+      - SERVICE_NAME=orchestrator
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - multi-agent-network
+    volumes:
+      - model_cache:/app/models
+      - data:/app/data
+      - logs:/app/logs
+      - checkpoints:/app/checkpoints
+
+  # Memory Service - Tiered memory storage
+  memory-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: multi-agent-memory
+    ports:
+      - "8082:8082"
+    environment:
+      - PORT=8082
+      - ENV=production
+      - LOG_LEVEL=INFO
+      - SERVICE_NAME=memory-service
+      - HOT_TIER_GB=2
+      - WARM_TIER_GB=8
+      - COLD_TIER_GB=50
+      - VECTOR_COMPRESSION=RaBitQ
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+    depends_on:
+      orchestrator:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - multi-agent-network
+    volumes:
+      - model_cache:/app/models
+      - data:/app/data
+      - logs:/app/logs
+
+  # RAG Service - Retrieval-Augmented Generation
+  rag-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: multi-agent-rag
+    ports:
+      - "8083:8083"
+    environment:
+      - PORT=8083
+      - ENV=production
+      - LOG_LEVEL=INFO
+      - SERVICE_NAME=rag-service
+      - EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
+      - VECTOR_INDEX_TYPE=HNSW
+      - TOP_K=10
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+    depends_on:
+      memory-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - multi-agent-network
+    volumes:
+      - model_cache:/app/models
+      - data:/app/data
+      - logs:/app/logs
+
+  # Skill Service - Skill registry and execution
+  skill-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: multi-agent-skills
+    ports:
+      - "8084:8084"
+    environment:
+      - PORT=8084
+      - ENV=production
+      - LOG_LEVEL=INFO
+      - SERVICE_NAME=skill-service
+      - TOTAL_SKILLS=250
+      - CATEGORIES=5
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    depends_on:
+      orchestrator:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8084/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - multi-agent-network
+    volumes:
+      - model_cache:/app/models
+      - data:/app/data
+      - logs:/app/logs
+
+  # Research Service - 7-phase research pipeline
+  research-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: multi-agent-research
+    ports:
+      - "8085:8085"
+    environment:
+      - PORT=8085
+      - ENV=production
+      - LOG_LEVEL=INFO
+      - SERVICE_NAME=research-service
+      - SANDBOX_TIMEOUT=3600
+      - MAX_EXPERIMENTS=10
+      - SANDBOX_CPU=2
+      - SANDBOX_MEMORY_GB=8
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
+    depends_on:
+      orchestrator:
+        condition: service_healthy
+      memory-service:
+        condition: service_healthy
+      rag-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8085/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - multi-agent-network
+    volumes:
+      - model_cache:/app/models
+      - data:/app/data
+      - logs:/app/logs
+      - checkpoints:/app/checkpoints
+
+  # Dream Module - Hypothesis generation during idle time
+  dream-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: multi-agent-dream
+    ports:
+      - "8086:8086"
+    environment:
+      - PORT=8086
+      - ENV=production
+      - LOG_LEVEL=INFO
+      - SERVICE_NAME=dream-service
+      - SCHEDULE=0 2 * * *
+      - HYPOTHESIS_COUNT=5
+      - SOURCE_DATABASES=arxiv,semantic_scholar,pubmed,openalex,huggingface_papers,papers_with_code,github_trending,hacker_news,lobsteers
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 512M
+    depends_on:
+      orchestrator:
+        condition: service_healthy
+      memory-service:
+        condition: service_healthy
+      rag-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8086/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - multi-agent-network
+    volumes:
+      - model_cache:/app/models
+      - data:/app/data
+      - logs:/app/logs
+
+  # Magpie Module - Training from failures
+  magpie-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: multi-agent-magpie
+    ports:
+      - "8087:8087"
+    environment:
+      - PORT=8087
+      - ENV=production
+      - LOG_LEVEL=INFO
+      - SERVICE_NAME=magpie-service
+      - SCHEDULE=0 3 * * *
+      - TRAINING_PRECISION=bf16
+      - GRADIENT_COMPRESSION=1bit_adam
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 512M
+    depends_on:
+      orchestrator:
+        condition: service_healthy
+      memory-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8087/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - multi-agent-network
+    volumes:
+      - model_cache:/app/models
+      - data:/app/data
+      - logs:/app/logs
+
+  # Monitoring - Prometheus metrics
+  monitoring:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: multi-agent-monitoring
+    ports:
+      - "9090:9090"
+    environment:
+      - PORT=9090
+      - ENV=production
+      - LOG_LEVEL=INFO
+      - SERVICE_NAME=monitoring
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9090/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - multi-agent-network
+    volumes:
+      - logs:/app/logs
+
+  # Redis - Caching and message queue
+  redis:
+    image: redis:7-alpine
+    container_name: multi-agent-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - multi-agent-network
+    volumes:
+      - redis_data:/data
+
+  # PostgreSQL - Persistent storage
+  postgres:
+    image: postgres:15-alpine
+    container_name: multi-agent-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=multi_agent
+      - POSTGRES_USER=agent
+      - POSTGRES_PASSWORD=changeme
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agent -d multi_agent"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - multi-agent-network
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+networks:
+  multi-agent-network:
+    driver: bridge
+    name: multi-agent-network
+
+volumes:
+  model_cache:
+    driver: local
+  data:
+    driver: local
+  logs:
+    driver: local
+  checkpoints:
+    driver: local
+  redis_data:
+    driver: local
+  postgres_data:
+    driver: local

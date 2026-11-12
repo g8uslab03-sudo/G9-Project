@@ -1,0 +1,70 @@
+# Kaggle-optimized Dockerfile for 2xT4 deployment
+FROM nvidia/cuda:12.1-runtime-ubuntu22.04
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    DEBIAN_FRONTEND=noninteractive \
+    PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512 \
+    TOKENIZERS_PARALLELISM=false
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.11 \
+    python3.11-venv \
+    python3.11-dev \
+    build-essential \
+    curl \
+    git \
+    wget \
+    ca-certificates \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    libgl1-mesa-glx \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create virtual environment
+RUN python3.11 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Upgrade pip
+RUN pip install --upgrade pip setuptools wheel
+
+# Install PyTorch with CUDA 12.1
+RUN pip install torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2 --index-url https://download.pytorch.org/whl/cu121
+
+# Install core dependencies
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install -r /tmp/requirements.txt
+
+# Install ML dependencies
+COPY requirements-ml.txt /tmp/requirements-ml.txt
+RUN pip install -r /tmp/requirements-ml.txt
+
+# Create app user
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
+# Set working directory
+WORKDIR /app
+
+# Copy application code
+COPY --chown=appuser:appuser src/ ./src/
+COPY --chown=appuser:appuser main.py ./
+
+# Create necessary directories
+RUN mkdir -p /app/data /app/models /app/cache /app/logs /app/checkpoints && \
+    chown -R appuser:appuser /app
+
+# Switch to app user
+USER appuser
+
+# Expose ports
+EXPOSE 8080 8081 8082 8083 8084 8085 8086 8087 9090
+
+# Default command (will be overridden by docker-compose)
+CMD ["python", "main.py", "--mode", "api"]

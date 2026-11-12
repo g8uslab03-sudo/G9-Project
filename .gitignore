@@ -1,0 +1,102 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+*.egg
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+*.log.*
+
+# Data
+data/
+*.sqlite
+*.db
+
+# Models
+models/
+*.bin
+*.pt
+*.pth
+*.safetensors
+
+# Cache
+.cache/
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Docker
+.docker/
+
+# Kubernetes
+*.kubeconfig
+
+# Secrets
+*.key
+*.pem
+*.crt
+*.p12
+*.pfx
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# IDE specific
+.project
+.classpath
+.settings/
+*.iml
+*.ipr
+*.iws
+
+# Testing
+.tox/
+.nox/
+
+# Documentation
+docs/_build/
+
+# Profiling
+*.prof
+*.pstats
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Temporary files
+tmp/
+temp/
+*.tmp

@@ -1,0 +1,258 @@
+version: '3.8'
+
+services:
+  # Main Brain - Runs on GPU 0
+  main-brain:
+    build:
+      context: .
+      dockerfile: Dockerfile.kaggle
+    container_name: kaggle-main-brain
+    runtime: nvidia
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+      - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
+      - MODEL_PRECISION=fp16
+      - BATCH_SIZE=1
+      - SERVICE_NAME=main-brain
+      - LOG_LEVEL=INFO
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 8G
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - model_cache:/app/models
+      - data:/app/data
+      - logs:/app/logs
+      - checkpoints:/app/checkpoints
+    networks:
+      - kaggle-network
+    ipc: host
+    shm_size: 8g
+
+  # Sub Brain - Runs on GPU 1
+  sub-brain:
+    build:
+      context: .
+      dockerfile: Dockerfile.kaggle
+    container_name: kaggle-sub-brain
+    runtime: nvidia
+    environment:
+      - CUDA_VISIBLE_DEVICES=1
+      - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
+      - MODEL_PRECISION=fp16
+      - BATCH_SIZE=2
+      - SERVICE_NAME=sub-brain
+      - LOG_LEVEL=INFO
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 4G
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - model_cache:/app/models
+      - data:/app/data
+      - logs:/app/logs
+    networks:
+      - kaggle-network
+    ipc: host
+    shm_size: 4g
+
+  # Audit & Shadow Brains - CPU only
+  audit-shadow-brains:
+    build:
+      context: .
+      dockerfile: Dockerfile.kaggle
+    container_name: kaggle-audit-shadow
+    environment:
+      - SERVICE_NAME=audit-shadow-brains
+      - MODEL_PRECISION=fp16
+      - LOG_LEVEL=INFO
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 4G
+        reservations:
+          cpus: '0.5'
+          memory: 2G
+    volumes:
+      - model_cache:/app/models
+      - data:/app/data
+      - logs:/app/logs
+    networks:
+      - kaggle-network
+
+  # Dream Module - CPU only, runs daily
+  dream-module:
+    build:
+      context: .
+      dockerfile: Dockerfile.kaggle
+    container_name: kaggle-dream
+    environment:
+      - SERVICE_NAME=dream-module
+      - SCHEDULE=daily
+      - HYPOTHESIS_COUNT=5
+      - LOG_LEVEL=INFO
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 2G
+        reservations:
+          cpus: '0.25'
+          memory: 1G
+    volumes:
+      - model_cache:/app/models
+      - data:/app/data
+      - logs:/app/logs
+    networks:
+      - kaggle-network
+
+  # Magpie Module - Uses GPU 0 for training (scheduled)
+  magpie-module:
+    build:
+      context: .
+      dockerfile: Dockerfile.kaggle
+    container_name: kaggle-magpie
+    runtime: nvidia
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+      - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
+      - SERVICE_NAME=magpie-module
+      - TRAINING_SCHEDULE=weekly
+      - PRECISION=bf16
+      - GRADIENT_COMPRESSION=1bit_adam
+      - LOG_LEVEL=INFO
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 4G
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - model_cache:/app/models
+      - data:/app/data
+      - logs:/app/logs
+    networks:
+      - kaggle-network
+    ipc: host
+    shm_size: 4g
+
+  # Research Module - Uses GPU 1 for experiments
+  research-module:
+    build:
+      context: .
+      dockerfile: Dockerfile.kaggle
+    container_name: kaggle-research
+    runtime: nvidia
+    environment:
+      - CUDA_VISIBLE_DEVICES=1
+      - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
+      - SERVICE_NAME=research-module
+      - SANDBOX_TIMEOUT=3600
+      - MAX_EXPERIMENTS=10
+      - SANDBOX_CPU=2
+      - SANDBOX_MEMORY_GB=8
+      - LOG_LEVEL=INFO
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 8G
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - model_cache:/app/models
+      - data:/app/data
+      - logs:/app/logs
+      - checkpoints:/app/checkpoints
+    networks:
+      - kaggle-network
+    ipc: host
+    shm_size: 8g
+
+  # Memory & RAG Service - CPU only
+  memory-rag:
+    build:
+      context: .
+      dockerfile: Dockerfile.kaggle
+    container_name: kaggle-memory-rag
+    environment:
+      - SERVICE_NAME=memory-rag
+      - VECTOR_INDEX_TYPE=HNSW
+      - COMPRESSION=RaBitQ
+      - EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
+      - LOG_LEVEL=INFO
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 4G
+        reservations:
+          cpus: '0.5'
+          memory: 2G
+    volumes:
+      - model_cache:/app/models
+      - data:/app/data
+      - logs:/app/logs
+    networks:
+      - kaggle-network
+
+  # Skill Registry - CPU only
+  skill-registry:
+    build:
+      context: .
+      dockerfile: Dockerfile.kaggle
+    container_name: kaggle-skills
+    environment:
+      - SERVICE_NAME=skill-registry
+      - TOTAL_SKILLS=250
+      - CATEGORIES=5
+      - LOG_LEVEL=INFO
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 2G
+        reservations:
+          cpus: '0.25'
+          memory: 1G
+    volumes:
+      - model_cache:/app/models
+      - data:/app/data
+      - logs:/app/logs
+    networks:
+      - kaggle-network
+
+networks:
+  kaggle-network:
+    driver: bridge
+    name: kaggle-network
+
+volumes:
+  model_cache:
+    driver: local
+  data:
+    driver: local
+  logs:
+    driver: local
+  checkpoints:
+    driver: local

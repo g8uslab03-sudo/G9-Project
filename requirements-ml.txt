@@ -1,0 +1,17 @@
+# ML dependencies - install after core requirements
+torch==2.1.2
+torchvision==0.16.2
+torchaudio==2.1.2
+transformers==4.36.2
+accelerate==0.25.0
+sentence-transformers==2.2.2
+huggingface-hub==0.20.3
+tokenizers==0.15.0
+safetensors==0.4.2
+peft==0.7.1
+bitsandbytes==0.41.3
+auto-gptq==0.5.1
+awq==0.1.0
+faiss-cpu==1.7.4
+hnswlib==0.7.0
+annoy==1.17.3
