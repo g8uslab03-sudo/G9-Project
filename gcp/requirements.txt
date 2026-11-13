@@ -1,0 +1,6 @@
+"""GCP requirements (e2-micro, 24x7 controller)."""
+
+flask==3.0.0
+pydantic==2.7.4
+python-dotenv==1.0.0
+gunicorn==21.2.0

@@ -1,0 +1,29 @@
+# Open Source Market Sources
+
+sources:
+  models:
+    - name: Hugging Face Hub
+      url: https://huggingface.co/models
+      api: https://huggingface.co/api/models
+    - name: ModelScope
+      url: https://modelscope.cn/models
+      api: https://modelscope.cn/api/v1/models
+  code:
+    - name: GitHub
+      url: https://github.com
+      api: https://api.github.com/search/repositories
+  literature:
+    - name: arXiv
+      url: https://arxiv.org
+      api: https://export.arxiv.org/api/query
+  news:
+    - name: DuckDuckGo News
+      url: https://duckduckgo.com
+  monitor:
+    - name: WorldMonitor
+      type: real_time_news_monitor
+
+download_policy:
+  require_sha256: true
+  verify_license: true
+  sandbox_before_use: true

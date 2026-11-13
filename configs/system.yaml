@@ -1,0 +1,59 @@
+# G9 Autonomous Multi-AI Problem Solving System
+
+System configuration for dual-cloud (GCP e2-micro + Kaggle 2xT4) operation.
+
+provider:
+  gcp:
+    type: controller
+    instance: e2-micro
+    region: us-central1
+    port: 8080
+    data_path: /app/data
+  kaggle:
+    type: compute
+    gpus: 2
+    gpu_type: T4
+    data_path: /kaggle/working/data
+    sandbox_dir: /kaggle/working/sandbox
+
+precision:
+  inference: fp16
+  training: mixed
+  gradient_checkpointing: true
+
+vector_index:
+  dim: 384
+  turboquant: true
+  compress: true
+
+mcts:
+  anchors:
+    - verify_cuda
+    - verify_dual_gpu
+    - run_benchmark
+    - write_output
+  iterations: 100
+  exploration_constant: 1.414
+
+evaporation:
+  clear_vram: true
+  clear_workspace: true
+  checkpoint_before_evaporate: true
+  resume_after_disconnect_hours: 12
+
+magpie:
+  failure_retention_days: 60
+  research_records: permanent
+
+skill_catalog:
+  total: 250
+  categories: 5
+  per_category: 50
+
+open_source_sources:
+  - huggingface
+  - modelscope
+  - arxiv
+  - github
+  - duckduckgo_news
+  - worldmonitor

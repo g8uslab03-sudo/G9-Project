@@ -1,0 +1,6 @@
+# GCP Cloud Build
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build', '-t', 'gcr.io/$PROJECT_ID/g9-orchestrator:latest', '.']
+- name: 'gcr.io/cloud-builders/gcloud'
+  args: ['run', 'deploy', 'g9-orchestrator', '--image', 'gcr.io/$PROJECT_ID/g9-orchestrator:latest', '--region', '$REGION', '--platform', 'managed', '--allow-unauthenticated', '--memory', '512Mi', '--cpu', '1']

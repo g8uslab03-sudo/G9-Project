@@ -1,0 +1,8 @@
+"""Kaggle T4x2 worker requirements (2xT4 GPU)."""
+
+torch==2.3.0
+pynvml==11.5.0
+transformers==4.41.0
+sentence-transformers==2.7.0
+pydantic==2.7.4
+python-dotenv==1.0.0
